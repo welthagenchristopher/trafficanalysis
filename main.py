@@ -8,7 +8,10 @@ import logging
 import ipaddress
 import time
 
-# Set up logging
+# Lack of commenting due to the fact 90% of this codebase involved unpacking, and formatting packet data
+#as returned through scapy - I'll get to it, but really all you need is a basic understanding of the topic
+#to understand the logic here.
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -24,7 +27,7 @@ class PacketProcessor:
         return self.protocol_map.get(protocol_num, f'OTHER({protocol_num})')
 
     def is_local_ip(self, ip: str) -> str:
-        """Determine if the IP is part of the local network."""
+        
         try:
             return "Local" if ipaddress.IPv4Address(ip) in self.local_network else "External"
         except ipaddress.AddressValueError:
@@ -118,11 +121,11 @@ def main():
     st.set_page_config(page_title="Network Traffic Analysis", layout="wide")
     st.title("Real-Time Network Traffic Analysis")
 
-    # Sidebar: Interface selection and refresh rate
+    
     with st.sidebar:
         refresh_rate = st.slider("Refresh Rate (seconds)", 1, 10, 2)
 
-        # Filter interfaces with valid IPs
+        
         interface_options = {
             iface.name: iface
             for iface in IFACES.data.values()
@@ -148,7 +151,7 @@ def main():
         st.session_state.capture_thread.start()
         st.session_state.current_interface = interface_selection
 
-    # Placeholders for metrics, data, and protocol chart
+    
     metrics_placeholder = st.empty()
     data_placeholder = st.empty()
     protocol_chart_placeholder = st.empty()
@@ -160,13 +163,13 @@ def main():
             return [""] * len(row)
 
     while True:
-        # Fetch the latest data from the processor
+        
         df = st.session_state.processor.get_dataframe()
 
         df = df.iloc[::-1]
-        styleddf = df.style.apply(apply_style, axis=1) # apply green to local!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        styleddf = df.style.apply(apply_style, axis=1) 
 
-        # Update metrics
+        
         with metrics_placeholder.container():
             if df.empty:
                 st.warning("No packets captured yet.")
@@ -174,13 +177,13 @@ def main():
                 st.metric("Total Packets", len(df))
                 st.metric("Capture Duration (s)", (datetime.now() - st.session_state.processor.start_time).total_seconds())
 
-        # Update packet data
+        
         with data_placeholder.container():
             if not df.empty:
                 st.subheader("Packet Data")
                 st.dataframe(styleddf, use_container_width=True)
 
-        # Update protocol chart
+        
         with protocol_chart_placeholder.container():
             if not df.empty:
                 protocol_counts = df["protocol"].value_counts()
@@ -192,7 +195,7 @@ def main():
                     )
                 )
 
-        # Pause for refresh rate without blocking the interface
+        
         time.sleep(refresh_rate)
 
 
