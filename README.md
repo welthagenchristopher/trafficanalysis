@@ -3,7 +3,7 @@ simple network traffic analysis with scapy and streamlit
 
 Not much happening here. The combination of streamlit and scapy, I've found, is pretty bad for this purpose.
 
-The functionality relating to consistent, fast data flow between python, and the streamlit 
+The functionality relating to consistent, fast data flow between the flask backend, and the streamlit 
 browser application is shaky at best, and doesn't offer a whole lot in regards to capabilities for handling
 fast processing. It uses websockets which handle the raw data flow alright, but the UI update mechanisms
 really tank the whole thing - reruns are not at all suitable, and the containerised UI elements that can handle
