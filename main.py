@@ -8,9 +8,9 @@ import logging
 import ipaddress
 import time
 
-# Lack of commenting due to the fact 90% of this codebase involved unpacking, and formatting packet data
-#as returned through scapy - I'll get to it, but really all you need is a basic understanding of the topic
-#to understand the logic here.
+# I've touched on some library-specific methods here, but 90% of this codebase revolves around the 
+# unpacking of packet data. A quick read of the topic will give you the information you need
+# to know to understand the seperation and indentification logic here.
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -83,7 +83,10 @@ class PacketProcessor:
             return pd.DataFrame(self.packet_data)
 
 
-class PacketCaptureThread:
+class PacketCaptureThread: # Generic functions handled within the threads to capture packets on,
+                           # the interfaces. The threading was simple, though it took me a bit,
+                           # to figure out, and implement locking to prevent a 'too many hands in,
+                           # the pie' situation with packets being captured and dissected.
     def __init__(self, processor: PacketProcessor, interface: str):
         self.processor = processor
         self.interface = interface
@@ -117,7 +120,8 @@ class PacketCaptureThread:
             logger.error(f"Error sniffing on interface {self.interface}: {e}")
 
 
-def main():
+def main(): # Setup for the streamlit page, and configuration for scapy
+    
     st.set_page_config(page_title="Network Traffic Analysis", layout="wide")
     st.title("Real-Time Network Traffic Analysis")
 
@@ -130,33 +134,40 @@ def main():
             iface.name: iface
             for iface in IFACES.data.values()
             if getattr(iface, "ip", None) and not iface.ip.startswith("169.254") and "lo" not in iface.name.lower()
-        }
+        } # This is a self generating dictionary making use of IFACE (provided by scapy). What this does is run queries against,
+          # the windows API to return the active network interfaces. When doing this, make sure to exclude the loopback address,
+          # (and 'lo' not in...). Scapy will normally exclude this itself when using the default Iface method.
+        
         if not interface_options:
             st.error("No valid network interfaces found.")
             return
 
         default_interface = next((name for name in interface_options if 'wifi' in name.lower()), list(interface_options.keys())[0])
         interface_selection = st.selectbox("Select Network Interface", list(interface_options.keys()), index=list(interface_options.keys()).index(default_interface))
+        #Generating an option list of all the available interfaces within streamlit
 
     selected_iface = interface_options[interface_selection]
     logger.info(f"Selected interface: {selected_iface.name} (IP: {selected_iface.ip})")
 
     if "capture_thread" not in st.session_state or st.session_state.current_interface != interface_selection:
         if "capture_thread" in st.session_state and st.session_state.capture_thread:
-            st.session_state.capture_thread.stop()
+            st.session_state.capture_thread.stop() #This is a bit of a convoluted way to stop packet capture on a thread when another.
+                                                   # one is selected.
         
-        local_network_range = str(ipaddress.ip_network(f"{selected_iface.ip}/24", strict=False))
+        local_network_range = str(ipaddress.ip_network(f"{selected_iface.ip}/24", strict=False)) 
         st.session_state.processor = PacketProcessor(local_network_range)
         st.session_state.capture_thread = PacketCaptureThread(st.session_state.processor, selected_iface.name)
         st.session_state.capture_thread.start()
-        st.session_state.current_interface = interface_selection
+        st.session_state.current_interface = interface_selection # Re-initilisation of the config against the packet processor
+                                                                 # called when the interface selection changes.
 
     
     metrics_placeholder = st.empty()
     data_placeholder = st.empty()
     protocol_chart_placeholder = st.empty()
 
-    def apply_style(row):
+    def apply_style(row): # This is a very generic UI generation through streamlit. I'm almost
+                          # certain I took this from a free example and modified it. Nothing of note here.
         if row['connection_type'] == 'Local':
             return ['background-color: green'] * len(row)
         else:
